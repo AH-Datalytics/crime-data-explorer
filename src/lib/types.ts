@@ -110,6 +110,23 @@ export interface EmploymentData {
   pe_ct_per_1000?: number;
 }
 
+// ---- CDE Summarized API Types ----
+
+export interface YearlyAggregate {
+  year: number;
+  count: number;
+  rate: number;
+  clearances: number;
+  population: number;
+}
+
+export interface HateCrimeYearly {
+  year: number;
+  incidents: number;
+  offenses: number;
+  victims: number;
+}
+
 // ---- App-level Types ----
 
 export interface KPIMetric {

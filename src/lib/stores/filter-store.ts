@@ -18,8 +18,8 @@ interface FilterStore {
 
 const DEFAULTS = {
   stateAbbr: null as string | null,
-  startYear: 1985,
-  endYear: 2023,
+  startYear: 2015,
+  endYear: 2024,
   crimeType: "violent-crime",
   agencyOri: null as string | null,
   agencySearch: "",

@@ -9,23 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { useFilterStore } from "@/lib/stores/filter-store";
 import { US_STATES } from "@/lib/us-states";
+import { CRIME_TYPE_GROUPS, getCrimeTypeLabel } from "@/lib/config";
 import { AgencySearch } from "./agency-search";
-
-const CRIME_TYPES = [
-  { value: "violent-crime", label: "Violent Crime" },
-  { value: "property-crime", label: "Property Crime" },
-  { value: "homicide", label: "Homicide" },
-  { value: "rape-revised", label: "Rape" },
-  { value: "robbery", label: "Robbery" },
-  { value: "aggravated-assault", label: "Aggravated Assault" },
-  { value: "burglary", label: "Burglary" },
-  { value: "larceny", label: "Larceny" },
-  { value: "motor-vehicle-theft", label: "Motor Vehicle Theft" },
-  { value: "arson", label: "Arson" },
-];
 
 interface FilterBarProps {
   showCrimeType?: boolean;
@@ -55,7 +42,12 @@ export function FilterBar({
   } = useFilterStore();
 
   const hasFilters =
-    stateAbbr || crimeType !== "violent-crime" || startYear !== 1985 || endYear !== 2023 || agencyOri;
+    stateAbbr || crimeType !== "violent-crime" || startYear !== 2015 || endYear !== 2024 || agencyOri;
+
+  const applyPreset = (years: number) => {
+    setEndYear(2024);
+    setStartYear(2024 - years + 1);
+  };
 
   return (
     <div className="sticky top-12 z-50 border-b border-border bg-white">
@@ -90,34 +82,62 @@ export function FilterBar({
 
         {showCrimeType && (
           <Select value={crimeType} onValueChange={setCrimeType}>
-            <SelectTrigger className="h-8 w-[180px] text-xs">
-              <SelectValue />
+            <SelectTrigger className="h-8 w-[200px] text-xs">
+              <SelectValue>{getCrimeTypeLabel(crimeType)}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              {CRIME_TYPES.map((ct) => (
-                <SelectItem key={ct.value} value={ct.value}>
-                  {ct.label}
-                </SelectItem>
+              {CRIME_TYPE_GROUPS.map((group) => (
+                <div key={group.label}>
+                  <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {group.label}
+                  </div>
+                  {group.types.map((ct) => (
+                    <SelectItem key={ct.value} value={ct.value}>
+                      {ct.label}
+                    </SelectItem>
+                  ))}
+                </div>
               ))}
             </SelectContent>
           </Select>
         )}
 
         {showYearRange && (
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-xs text-muted-foreground">{startYear}</span>
-            <Slider
-              min={1985}
-              max={2023}
-              step={1}
-              value={[startYear, endYear]}
-              onValueChange={([s, e]) => {
-                setStartYear(s);
-                setEndYear(e);
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              min={2000}
+              max={endYear}
+              value={startYear}
+              onChange={(e) => {
+                const v = parseInt(e.target.value);
+                if (!isNaN(v) && v >= 2000 && v <= endYear) setStartYear(v);
               }}
-              className="w-[140px]"
+              className="h-8 w-[64px] rounded-md border border-border bg-white px-2 text-center font-mono text-xs tabular-nums outline-none focus:border-navy"
             />
-            <span className="font-mono text-xs text-muted-foreground">{endYear}</span>
+            <span className="text-xs text-muted-foreground">to</span>
+            <input
+              type="number"
+              min={startYear}
+              max={2024}
+              value={endYear}
+              onChange={(e) => {
+                const v = parseInt(e.target.value);
+                if (!isNaN(v) && v >= startYear && v <= 2024) setEndYear(v);
+              }}
+              className="h-8 w-[64px] rounded-md border border-border bg-white px-2 text-center font-mono text-xs tabular-nums outline-none focus:border-navy"
+            />
+            <div className="flex items-center gap-1 ml-1">
+              {[5, 10].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => applyPreset(n)}
+                  className="h-6 rounded border border-border bg-muted/50 px-1.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-navy"
+                >
+                  {n}Y
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

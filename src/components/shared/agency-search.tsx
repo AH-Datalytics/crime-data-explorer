@@ -37,10 +37,14 @@ export function AgencySearch({
     : (allAgencies ?? []);
   const isLoading = stateAbbr ? loadingState : loadingAll;
 
-  // Filter by search query
+  // Sort alphabetically then filter by search query
+  const sorted = [...agencies].sort((a, b) =>
+    (a.agency_name ?? "").localeCompare(b.agency_name ?? ""),
+  );
+
   const filtered = (() => {
     const list = query.length > 0
-      ? agencies.filter((a) => {
+      ? sorted.filter((a) => {
           const q = query.toLowerCase();
           return (
             a.agency_name?.toLowerCase().includes(q) ||
@@ -49,7 +53,7 @@ export function AgencySearch({
             a.state_name?.toLowerCase().includes(q)
           );
         })
-      : agencies;
+      : sorted;
     return list.slice(0, 200);
   })();
 

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Search, Download, FileSpreadsheet, ExternalLink } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { KPIBanner } from "@/components/shared/kpi-banner";
+import { Loading } from "@/components/shared/loading";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -31,8 +32,14 @@ export default function AgenciesBrowsePage() {
     : (allAgencies ?? []);
   const isLoading = stateAbbr ? loadingState : loadingAll;
 
+  // Sort alphabetically
+  const sorted = useMemo(
+    () => [...agencies].sort((a, b) => (a.agency_name ?? "").localeCompare(b.agency_name ?? "")),
+    [agencies],
+  );
+
   const filtered = search
-    ? agencies.filter((a) => {
+    ? sorted.filter((a) => {
         const q = search.toLowerCase();
         return (
           a.agency_name?.toLowerCase().includes(q) ||
@@ -42,7 +49,7 @@ export default function AgenciesBrowsePage() {
           a.state_name?.toLowerCase().includes(q)
         );
       })
-    : agencies;
+    : sorted;
 
   // KPI summary
   const kpis: KPIMetric[] = [
@@ -174,12 +181,8 @@ export default function AgenciesBrowsePage() {
 
       {/* Loading state */}
       {isLoading && (
-        <div className="mt-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            {stateAbbr
-              ? `Loading agencies for ${US_STATES[stateAbbr]}...`
-              : "Loading all agencies across 51 jurisdictions..."}
-          </p>
+        <div className="mt-8">
+          <Loading />
         </div>
       )}
 
