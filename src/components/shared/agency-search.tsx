@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Search, X, Loader2 } from "lucide-react";
+import { Search, X, Loader2, ChevronDown } from "lucide-react";
 import { useAllAgencies, useCDEAgenciesByState } from "@/lib/hooks/use-crime-data";
 import type { AgencyListItem } from "@/lib/types";
 
@@ -13,7 +13,6 @@ interface AgencySearchProps {
   /** Called when user selects or clears an agency */
   onSelect: (ori: string | null, agency?: AgencyListItem) => void;
   className?: string;
-  placeholder?: string;
 }
 
 export function AgencySearch({
@@ -21,7 +20,6 @@ export function AgencySearch({
   value,
   onSelect,
   className = "",
-  placeholder,
 }: AgencySearchProps) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -39,25 +37,23 @@ export function AgencySearch({
     : (allAgencies ?? []);
   const isLoading = stateAbbr ? loadingState : loadingAll;
 
-  // Filter by search query — only show results when query has 2+ chars (or state narrows it)
+  // Filter by search query
   const filtered = (() => {
-    if (query.length < 2 && !stateAbbr) return [];
-    if (query.length === 0) return agencies.slice(0, 100);
-    const q = query.toLowerCase();
-    return agencies
-      .filter(
-        (a) =>
-          a.agency_name?.toLowerCase().includes(q) ||
-          a.ori?.toLowerCase().includes(q) ||
-          a.county_name?.toLowerCase().includes(q) ||
-          a.state_name?.toLowerCase().includes(q),
-      )
-      .slice(0, 100);
+    const list = query.length > 0
+      ? agencies.filter((a) => {
+          const q = query.toLowerCase();
+          return (
+            a.agency_name?.toLowerCase().includes(q) ||
+            a.ori?.toLowerCase().includes(q) ||
+            a.county_name?.toLowerCase().includes(q) ||
+            a.state_name?.toLowerCase().includes(q)
+          );
+        })
+      : agencies;
+    return list.slice(0, 200);
   })();
 
-  const selectedAgency = value
-    ? agencies.find((a) => a.ori === value)
-    : null;
+  const selectedAgency = value ? agencies.find((a) => a.ori === value) : null;
 
   const handleSelect = useCallback(
     (agency: AgencyListItem) => {
@@ -68,14 +64,22 @@ export function AgencySearch({
     [onSelect],
   );
 
-  const handleClear = () => {
+  const handleClear = (e: React.MouseEvent) => {
+    e.stopPropagation();
     onSelect(null);
     setQuery("");
     setOpen(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!open || filtered.length === 0) return;
+    if (!open) {
+      if (e.key === "ArrowDown" || e.key === "Enter") {
+        e.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+    if (filtered.length === 0) return;
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -114,109 +118,117 @@ export function AgencySearch({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Show selected agency chip
-  if (selectedAgency) {
-    return (
-      <div
-        className={`flex items-center gap-1.5 rounded-md border border-border bg-white px-2 py-1 text-xs ${className}`}
-      >
-        <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
-        <span className="truncate font-medium text-navy" title={selectedAgency.agency_name}>
-          {selectedAgency.agency_name}
-        </span>
-        <span className="shrink-0 font-mono text-muted-foreground">
-          ({selectedAgency.state_abbr})
-        </span>
-        <button
-          onClick={handleClear}
-          className="ml-auto shrink-0 text-muted-foreground hover:text-navy"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      </div>
-    );
-  }
-
-  const defaultPlaceholder = isLoading
-    ? "Loading agencies..."
-    : stateAbbr
-      ? `Search ${agencies.length} agencies...`
-      : `Search all agencies (${agencies.length.toLocaleString()})...`;
-
   return (
     <div className={`relative ${className}`} ref={containerRef}>
-      <div className="flex items-center rounded-md border border-border bg-white px-2">
+      {/* Trigger / display */}
+      <button
+        type="button"
+        className="flex h-8 w-full items-center gap-1.5 rounded-md border border-border bg-white px-2 text-xs transition-colors hover:bg-muted/50"
+        onClick={() => setOpen(!open)}
+      >
         {isLoading ? (
           <Loader2 className="h-3 w-3 shrink-0 animate-spin text-muted-foreground" />
         ) : (
           <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
         )}
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setOpen(true);
-          }}
-          onFocus={() => {
-            if (query.length >= 2 || stateAbbr) setOpen(true);
-          }}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder || defaultPlaceholder}
-          className="h-7 w-full bg-transparent px-2 text-xs outline-none placeholder:text-muted-foreground"
-        />
-        {query && (
-          <button
-            onClick={() => setQuery("")}
-            className="shrink-0 text-muted-foreground hover:text-navy"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        )}
-      </div>
-
-      {open && filtered.length > 0 && (
-        <div
-          ref={listRef}
-          className="absolute left-0 top-full z-[200] mt-1 max-h-72 w-[400px] overflow-y-auto rounded-lg border border-border bg-white shadow-lg"
-        >
-          {filtered.map((agency, i) => (
-            <button
-              key={agency.ori}
-              data-agency-item
-              className={`flex w-full items-start gap-2 px-3 py-2 text-left text-xs transition-colors ${
-                i === highlightIndex ? "bg-muted" : "hover:bg-muted/50"
-              }`}
-              onMouseEnter={() => setHighlightIndex(i)}
-              onClick={() => handleSelect(agency)}
+        {selectedAgency ? (
+          <>
+            <span className="truncate font-medium text-navy">
+              {selectedAgency.agency_name}
+            </span>
+            <span className="shrink-0 font-mono text-muted-foreground">
+              ({selectedAgency.state_abbr})
+            </span>
+            <span
+              role="button"
+              className="ml-auto shrink-0 text-muted-foreground hover:text-navy"
+              onClick={handleClear}
             >
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium text-navy">{agency.agency_name}</p>
-                <p className="text-muted-foreground">
-                  {agency.agency_type_name} &middot; {agency.county_name}, {agency.state_abbr}
-                </p>
+              <X className="h-3 w-3" />
+            </span>
+          </>
+        ) : (
+          <>
+            <span className="truncate text-muted-foreground">
+              {isLoading
+                ? "Loading..."
+                : `Select agency (${agencies.length.toLocaleString()})`}
+            </span>
+            <ChevronDown className="ml-auto h-3 w-3 shrink-0 text-muted-foreground" />
+          </>
+        )}
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute left-0 top-full z-[200] mt-1 w-[420px] rounded-lg border border-border bg-white shadow-lg">
+          {/* Search input inside dropdown */}
+          <div className="flex items-center border-b border-border px-3">
+            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <input
+              ref={inputRef}
+              autoFocus
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type to filter agencies..."
+              className="h-9 w-full bg-transparent px-2 text-xs outline-none placeholder:text-muted-foreground"
+            />
+            {query && (
+              <button
+                onClick={() => setQuery("")}
+                className="shrink-0 text-muted-foreground hover:text-navy"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+
+          {/* Agency list */}
+          <div ref={listRef} className="max-h-72 overflow-y-auto">
+            {filtered.length === 0 && !isLoading && (
+              <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                {query
+                  ? `No agencies found for "${query}"`
+                  : "No agencies available"}
               </div>
-              <span className="shrink-0 font-mono text-muted-foreground">{agency.ori}</span>
-            </button>
-          ))}
-          {filtered.length === 100 && (
-            <div className="border-t border-border px-3 py-2 text-center text-[10px] text-muted-foreground">
-              Showing first 100 results. Type more to narrow down.
-            </div>
-          )}
-        </div>
-      )}
-
-      {open && query.length >= 2 && filtered.length === 0 && !isLoading && (
-        <div className="absolute left-0 top-full z-[200] mt-1 w-[400px] rounded-lg border border-border bg-white p-3 text-center text-xs text-muted-foreground shadow-lg">
-          No agencies found for &quot;{query}&quot;
-        </div>
-      )}
-
-      {open && query.length < 2 && !stateAbbr && !isLoading && (
-        <div className="absolute left-0 top-full z-[200] mt-1 w-[400px] rounded-lg border border-border bg-white p-3 text-center text-xs text-muted-foreground shadow-lg">
-          Type at least 2 characters to search agencies
+            )}
+            {isLoading && (
+              <div className="px-3 py-4 text-center text-xs text-muted-foreground">
+                Loading agencies...
+              </div>
+            )}
+            {filtered.map((agency, i) => (
+              <button
+                key={agency.ori}
+                data-agency-item
+                className={`flex w-full items-start gap-2 px-3 py-2 text-left text-xs transition-colors ${
+                  i === highlightIndex ? "bg-muted" : "hover:bg-muted/50"
+                }`}
+                onMouseEnter={() => setHighlightIndex(i)}
+                onClick={() => handleSelect(agency)}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-navy">
+                    {agency.agency_name}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {agency.agency_type_name} &middot; {agency.county_name},{" "}
+                    {agency.state_abbr}
+                  </p>
+                </div>
+                <span className="shrink-0 font-mono text-muted-foreground">
+                  {agency.ori}
+                </span>
+              </button>
+            ))}
+            {filtered.length === 200 && (
+              <div className="border-t border-border px-3 py-2 text-center text-[10px] text-muted-foreground">
+                Showing first 200. Type more to narrow results.
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
