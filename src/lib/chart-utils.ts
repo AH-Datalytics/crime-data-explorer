@@ -44,6 +44,27 @@ export function downloadCSV(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
+export function downloadExcel(
+  filename: string,
+  headers: string[],
+  rows: (string | number)[][],
+) {
+  import("xlsx").then((XLSX) => {
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    // Auto-size columns based on content width
+    ws["!cols"] = headers.map((h, i) => {
+      const maxLen = Math.max(
+        h.length,
+        ...rows.map((r) => String(r[i] ?? "").length),
+      );
+      return { wch: Math.min(maxLen + 2, 40) };
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data");
+    XLSX.writeFile(wb, filename);
+  });
+}
+
 export async function downloadChartAsJPEG(
   elementId: string,
   filename: string,

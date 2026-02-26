@@ -8,6 +8,7 @@ import { DemographicChart } from "@/components/shared/demographic-chart";
 import { DataTable } from "@/components/shared/data-table";
 import { SAMPLE_HOMICIDE_TREND, SAMPLE_WEAPONS } from "@/lib/sample-data";
 import { useFilterStore } from "@/lib/stores/filter-store";
+import { useHomicideData } from "@/lib/hooks/use-crime-data";
 import { formatNumber } from "@/lib/measures";
 import { COLORS } from "@/lib/config";
 import type { DemographicBreakdown } from "@/lib/types";
@@ -33,11 +34,31 @@ const CIRCUMSTANCES: DemographicBreakdown[] = [
 ];
 
 export default function HomicidePage() {
-  const { startYear, endYear } = useFilterStore();
+  const { stateAbbr, startYear, endYear, agencyOri } = useFilterStore();
 
-  const filtered = SAMPLE_HOMICIDE_TREND.filter(
+  const scope = agencyOri || stateAbbr || "national";
+  const { data: liveRaw } = useHomicideData(scope, Math.max(startYear, 2000), endYear);
+
+  // Parse live homicide data
+  const parseLive = (): typeof SAMPLE_HOMICIDE_TREND | null => {
+    if (!liveRaw) return null;
+    const arr = Array.isArray(liveRaw) ? liveRaw : liveRaw?.results ?? liveRaw?.data ?? null;
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    return arr.map((r: Record<string, unknown>) => ({
+      year: Number(r.data_year ?? r.year ?? 0),
+      homicides: Number(r.homicide_count ?? r.homicide ?? r.actual ?? 0),
+      male_victims: Number(r.male_victims ?? r.male_count ?? 0),
+      female_victims: Number(r.female_victims ?? r.female_count ?? 0),
+    })).filter((r) => r.year > 0).sort((a, b) => a.year - b.year);
+  };
+
+  const liveData = parseLive();
+  const sampleFiltered = SAMPLE_HOMICIDE_TREND.filter(
     (d) => d.year >= Math.max(startYear, 2000) && d.year <= endYear,
   );
+  const filtered = liveData || sampleFiltered;
+
+  const scopeLabel = agencyOri || (stateAbbr ? `State: ${stateAbbr}` : "National");
 
   const latest = filtered[filtered.length - 1];
   const prev = filtered[filtered.length - 2];
@@ -65,11 +86,11 @@ export default function HomicidePage() {
 
   return (
     <>
-      <FilterBar showCrimeType={false} showState showYearRange />
+      <FilterBar showCrimeType={false} showState showYearRange showAgency />
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
         <PageHeader
           title="Expanded Homicide"
-          description="Detailed homicide statistics from the FBI's Supplementary Homicide Report (SHR). Includes weapon type, victim/offender demographics, circumstances, and relationships."
+          description={`${scopeLabel} detailed homicide statistics from the FBI's Supplementary Homicide Report (SHR).`}
         />
 
         <KPIBanner metrics={kpis} />

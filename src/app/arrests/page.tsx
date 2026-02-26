@@ -8,6 +8,7 @@ import { DemographicChart } from "@/components/shared/demographic-chart";
 import { DataTable } from "@/components/shared/data-table";
 import { SAMPLE_ARREST_TREND } from "@/lib/sample-data";
 import { useFilterStore } from "@/lib/stores/filter-store";
+import { useArrestData } from "@/lib/hooks/use-crime-data";
 import { formatNumber } from "@/lib/measures";
 import type { DemographicBreakdown } from "@/lib/types";
 
@@ -28,11 +29,33 @@ const ARREST_BY_SEX: DemographicBreakdown[] = [
 ];
 
 export default function ArrestsPage() {
-  const { startYear, endYear } = useFilterStore();
+  const { stateAbbr, startYear, endYear, agencyOri } = useFilterStore();
 
-  const filtered = SAMPLE_ARREST_TREND.filter(
+  // Agency ORI overrides state scope for arrests
+  const scope = agencyOri || stateAbbr || "national";
+  const { data: liveRaw } = useArrestData(scope, Math.max(startYear, 2000), endYear);
+
+  // Parse live arrest data
+  const parseLive = (): typeof SAMPLE_ARREST_TREND | null => {
+    if (!liveRaw) return null;
+    const arr = Array.isArray(liveRaw) ? liveRaw : liveRaw?.results ?? liveRaw?.data ?? null;
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    return arr.map((r: Record<string, unknown>) => ({
+      year: Number(r.data_year ?? r.year ?? 0),
+      total_arrests: Number(r.total_arrests ?? r.arrest_count ?? 0),
+      drug_abuse: Number(r.drug_abuse ?? r.drug_abuse_violations ?? 0),
+      dui: Number(r.dui ?? r.driving_under_influence ?? 0),
+      simple_assault: Number(r.simple_assault ?? 0),
+    })).filter((r) => r.year > 0).sort((a, b) => a.year - b.year);
+  };
+
+  const liveData = parseLive();
+  const sampleFiltered = SAMPLE_ARREST_TREND.filter(
     (d) => d.year >= startYear && d.year <= endYear,
   );
+  const filtered = liveData || sampleFiltered;
+
+  const scopeLabel = agencyOri || (stateAbbr ? `State: ${stateAbbr}` : "National");
 
   const latest = filtered[filtered.length - 1];
   const prev = filtered[filtered.length - 2];
@@ -74,11 +97,11 @@ export default function ArrestsPage() {
 
   return (
     <>
-      <FilterBar showCrimeType={false} showState showYearRange />
+      <FilterBar showCrimeType={false} showState showYearRange showAgency />
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
         <PageHeader
           title="Arrests"
-          description="National arrest trends by offense type and arrestee demographics. Data includes all reporting law enforcement agencies."
+          description={`${scopeLabel} arrest trends by offense type and arrestee demographics. Data includes all reporting law enforcement agencies.`}
         />
 
         <KPIBanner metrics={kpis} />

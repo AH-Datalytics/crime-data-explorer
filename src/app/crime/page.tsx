@@ -7,17 +7,40 @@ import { TrendChart } from "@/components/shared/trend-chart";
 import { DataTable } from "@/components/shared/data-table";
 import { SAMPLE_NATIONAL_TREND } from "@/lib/sample-data";
 import { useFilterStore } from "@/lib/stores/filter-store";
+import { useNationalEstimates, useStateEstimates, useAgencyCrime } from "@/lib/hooks/use-crime-data";
 import { buildKPIFromSummary, buildTrendData, computeRate, formatNumber, formatRate } from "@/lib/measures";
+import type { CrimeSummary } from "@/lib/types";
 
 export default function CrimeTrendsPage() {
-  const { startYear, endYear, crimeType } = useFilterStore();
+  const { stateAbbr, startYear, endYear, crimeType, agencyOri } = useFilterStore();
 
-  const filtered = SAMPLE_NATIONAL_TREND.filter(
+  // Live data hooks — agency overrides state overrides national
+  const { data: nationalLive } = useNationalEstimates(crimeType, startYear, endYear);
+  const { data: stateLive } = useStateEstimates(agencyOri ? null : stateAbbr, crimeType, startYear, endYear);
+  const { data: agencyLive } = useAgencyCrime(agencyOri, crimeType, startYear, endYear);
+
+  // Parse API response
+  const parseResponse = (raw: unknown): CrimeSummary[] | null => {
+    if (!raw) return null;
+    const arr = Array.isArray(raw) ? raw : (raw as Record<string, unknown>)?.results ?? (raw as Record<string, unknown>)?.data ?? null;
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    return arr;
+  };
+
+  const liveData = agencyOri
+    ? parseResponse(agencyLive)
+    : stateAbbr
+      ? parseResponse(stateLive)
+      : parseResponse(nationalLive);
+
+  // Use live data if available, otherwise fall back to sample (filtered)
+  const sampleFiltered = SAMPLE_NATIONAL_TREND.filter(
     (d) => d.year >= startYear && d.year <= endYear,
   );
+  const allData: CrimeSummary[] = liveData || sampleFiltered;
 
   // Map crime type selector to data field
-  const fieldMap: Record<string, keyof (typeof filtered)[0]> = {
+  const fieldMap: Record<string, keyof CrimeSummary> = {
     "violent-crime": "violent_crime",
     "property-crime": "property_crime",
     homicide: "homicide",
@@ -31,6 +54,12 @@ export default function CrimeTrendsPage() {
   };
   const field = fieldMap[crimeType] || "violent_crime";
   const fieldLabel = crimeType.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const scopeLabel = agencyOri || (stateAbbr ? `State: ${stateAbbr}` : "National");
+
+  const filtered = allData.filter(
+    (d) => d.year >= startYear && d.year <= endYear,
+  );
 
   const kpis = [
     buildKPIFromSummary(filtered, field, fieldLabel),
@@ -75,11 +104,11 @@ export default function CrimeTrendsPage() {
 
   return (
     <>
-      <FilterBar showCrimeType showState showYearRange />
+      <FilterBar showCrimeType showState showYearRange showAgency />
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
         <PageHeader
           title="Crime Trends"
-          description={`National ${fieldLabel.toLowerCase()} statistics from ${startYear} to ${endYear}. Use the filters above to explore by crime type, state, and year range.`}
+          description={`${scopeLabel} ${fieldLabel.toLowerCase()} statistics from ${startYear} to ${endYear}. Use the filters above to explore by crime type, state, agency, and year range.`}
         />
 
         <KPIBanner metrics={kpis} />

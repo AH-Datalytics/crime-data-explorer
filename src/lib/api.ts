@@ -107,6 +107,49 @@ export async function fetchHomicideData(
   return res.json();
 }
 
+// ---- CDE Agency endpoints (no auth) ----
+
+// Fetch agencies for a state — returns { COUNTY: [agencies...], ... }
+export async function fetchCDEAgenciesByState(stateAbbr: string) {
+  const res = await fetchWithRetry(`${FBI_CDE_BASE}/agency/byStateAbbr/${stateAbbr}`);
+  return res.json();
+}
+
+// Fetch agency crime data (monthly rates + counts)
+export async function fetchAgencyCrimeCDE(
+  ori: string,
+  crimeType: string = "violent-crime",
+  startYear: number = 2015,
+  endYear: number = 2023,
+) {
+  const url = `${FBI_CDE_BASE}/summarized/agency/${ori}/${crimeType}?from=01-${startYear}&to=12-${endYear}`;
+  const res = await fetchWithRetry(url);
+  return res.json();
+}
+
+// ---- Agency-level data (USA.gov, requires key) ----
+
+export async function fetchAgencyCrime(
+  ori: string,
+  crimeType: string = "violent-crime",
+  startYear: number = 1985,
+  endYear: number = 2023,
+) {
+  const url = `${FBI_API_BASE}/summarized/${ori}/${crimeType}?from=${startYear}&to=${endYear}&API_KEY=${API_KEY}`;
+  const res = await fetchWithRetry(url);
+  return res.json();
+}
+
+export async function fetchAgencyEmployment(
+  ori: string,
+  startYear: number = 2000,
+  endYear: number = 2023,
+) {
+  const url = `${FBI_API_BASE}/pe/agency/${ori}/byYearRange?from=${startYear}&to=${endYear}&API_KEY=${API_KEY}`;
+  const res = await fetchWithRetry(url);
+  return res.json();
+}
+
 // ---- Pre-fetched Data (from /data/generated/) ----
 
 export async function fetchPrecomputedData<T>(filename: string): Promise<T> {

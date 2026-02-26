@@ -8,6 +8,7 @@ import { DemographicChart } from "@/components/shared/demographic-chart";
 import { DataTable } from "@/components/shared/data-table";
 import { SAMPLE_HATE_CRIME_TREND, SAMPLE_BIAS_CATEGORIES } from "@/lib/sample-data";
 import { useFilterStore } from "@/lib/stores/filter-store";
+import { useHateCrimeData } from "@/lib/hooks/use-crime-data";
 import { formatNumber } from "@/lib/measures";
 import { COLORS } from "@/lib/config";
 import type { DemographicBreakdown } from "@/lib/types";
@@ -23,11 +24,31 @@ const OFFENSE_TYPES: DemographicBreakdown[] = [
 ];
 
 export default function HateCrimePage() {
-  const { startYear, endYear } = useFilterStore();
+  const { stateAbbr, startYear, endYear, agencyOri } = useFilterStore();
 
-  const filtered = SAMPLE_HATE_CRIME_TREND.filter(
+  const scope = agencyOri || stateAbbr || "national";
+  const { data: liveRaw } = useHateCrimeData(scope, Math.max(startYear, 2000), endYear);
+
+  // Parse live hate crime data
+  const parseLive = (): typeof SAMPLE_HATE_CRIME_TREND | null => {
+    if (!liveRaw) return null;
+    const arr = Array.isArray(liveRaw) ? liveRaw : liveRaw?.results ?? liveRaw?.data ?? null;
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    return arr.map((r: Record<string, unknown>) => ({
+      year: Number(r.data_year ?? r.year ?? 0),
+      incidents: Number(r.incident_count ?? r.incidents ?? 0),
+      offenses: Number(r.offense_count ?? r.offenses ?? 0),
+      victims: Number(r.victim_count ?? r.victims ?? 0),
+    })).filter((r) => r.year > 0).sort((a, b) => a.year - b.year);
+  };
+
+  const liveData = parseLive();
+  const sampleFiltered = SAMPLE_HATE_CRIME_TREND.filter(
     (d) => d.year >= Math.max(startYear, 2000) && d.year <= endYear,
   );
+  const filtered = liveData || sampleFiltered;
+
+  const scopeLabel = agencyOri || (stateAbbr ? `State: ${stateAbbr}` : "National");
 
   const latest = filtered[filtered.length - 1];
   const prev = filtered[filtered.length - 2];
@@ -55,11 +76,11 @@ export default function HateCrimePage() {
 
   return (
     <>
-      <FilterBar showCrimeType={false} showState showYearRange />
+      <FilterBar showCrimeType={false} showState showYearRange showAgency />
       <div className="mx-auto max-w-7xl px-4 py-6 md:px-6">
         <PageHeader
           title="Hate Crime"
-          description="Hate crime statistics reported through the FBI's Hate Crime Statistics program. Includes incidents by bias motivation, offense type, and victim demographics."
+          description={`${scopeLabel} hate crime statistics reported through the FBI's Hate Crime Statistics program.`}
         />
 
         <KPIBanner metrics={kpis} />

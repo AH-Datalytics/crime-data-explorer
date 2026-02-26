@@ -12,6 +12,7 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { useFilterStore } from "@/lib/stores/filter-store";
 import { US_STATES } from "@/lib/us-states";
+import { AgencySearch } from "./agency-search";
 
 const CRIME_TYPES = [
   { value: "violent-crime", label: "Violent Crime" },
@@ -30,26 +31,31 @@ interface FilterBarProps {
   showCrimeType?: boolean;
   showState?: boolean;
   showYearRange?: boolean;
+  showAgency?: boolean;
 }
 
 export function FilterBar({
   showCrimeType = true,
   showState = true,
   showYearRange = true,
+  showAgency = false,
 }: FilterBarProps) {
   const {
     stateAbbr,
     startYear,
     endYear,
     crimeType,
+    agencyOri,
     setStateAbbr,
     setStartYear,
     setEndYear,
     setCrimeType,
+    setAgencyOri,
     resetFilters,
   } = useFilterStore();
 
-  const hasFilters = stateAbbr || crimeType !== "violent-crime" || startYear !== 1985 || endYear !== 2023;
+  const hasFilters =
+    stateAbbr || crimeType !== "violent-crime" || startYear !== 1985 || endYear !== 2023 || agencyOri;
 
   return (
     <div className="sticky top-12 z-50 border-b border-border bg-white">
@@ -71,6 +77,15 @@ export function FilterBar({
               ))}
             </SelectContent>
           </Select>
+        )}
+
+        {showAgency && (
+          <AgencySearch
+            stateAbbr={stateAbbr}
+            value={agencyOri}
+            onSelect={(ori) => setAgencyOri(ori)}
+            className="w-[260px]"
+          />
         )}
 
         {showCrimeType && (

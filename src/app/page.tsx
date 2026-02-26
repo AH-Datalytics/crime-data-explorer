@@ -10,8 +10,9 @@ import {
   SAMPLE_NATIONAL_TREND,
   SAMPLE_STATE_MAP,
 } from "@/lib/sample-data";
+import { useNationalEstimates } from "@/lib/hooks/use-crime-data";
 import { buildKPIFromSummary, buildTrendData } from "@/lib/measures";
-import type { DomainCard as DomainCardType } from "@/lib/types";
+import type { CrimeSummary, DomainCard as DomainCardType } from "@/lib/types";
 
 const DOMAIN_CARDS: DomainCardType[] = [
   {
@@ -43,6 +44,13 @@ const DOMAIN_CARDS: DomainCardType[] = [
     icon: "crosshair",
   },
   {
+    title: "Agencies",
+    description:
+      "Browse 19,000+ law enforcement agencies and view their crime statistics.",
+    href: "/agencies",
+    icon: "building",
+  },
+  {
     title: "About",
     description:
       "Methodology, data sources, reporting coverage, and frequently asked questions.",
@@ -53,7 +61,20 @@ const DOMAIN_CARDS: DomainCardType[] = [
 
 export default function OverviewPage() {
   const router = useRouter();
-  const data = SAMPLE_NATIONAL_TREND;
+
+  // Try live API data, fall back to sample
+  const { data: liveData } = useNationalEstimates("violent-crime", 1985, 2023);
+
+  const apiResults: CrimeSummary[] | null = (() => {
+    if (!liveData) return null;
+    const arr = Array.isArray(liveData)
+      ? liveData
+      : liveData?.results ?? liveData?.data ?? null;
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    return arr;
+  })();
+
+  const data = apiResults || SAMPLE_NATIONAL_TREND;
 
   const kpis = [
     buildKPIFromSummary(data, "violent_crime", "Violent Crime"),

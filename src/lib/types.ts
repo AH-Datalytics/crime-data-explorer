@@ -85,6 +85,31 @@ export interface AgencyInfo {
   population: number;
 }
 
+export interface AgencyListItem {
+  ori: string;
+  agency_name: string;
+  agency_type_name: string;
+  state_abbr: string;
+  state_name: string;
+  county_name: string;
+  division_name: string;
+  region_name: string;
+  region_desc: string;
+  nibrs: boolean;
+  latitude: number;
+  longitude: number;
+}
+
+export interface EmploymentData {
+  data_year: number;
+  total_pe_ct: number;
+  male_total_ct: number;
+  female_total_ct: number;
+  total_sworn_ct?: number;
+  total_civilian_ct?: number;
+  pe_ct_per_1000?: number;
+}
+
 // ---- App-level Types ----
 
 export interface KPIMetric {

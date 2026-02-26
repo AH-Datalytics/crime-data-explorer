@@ -11,6 +11,7 @@ export const NAV_ITEMS = [
   { label: "Arrests", href: "/arrests" },
   { label: "Hate Crime", href: "/hate-crime" },
   { label: "Expanded Homicide", href: "/homicide" },
+  { label: "Agencies", href: "/agencies" },
   { label: "About", href: "/about" },
 ] as const;
 
